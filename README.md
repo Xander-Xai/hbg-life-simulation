@@ -38,6 +38,8 @@ hbg-life-simulation skill。
 把一段中文人生故事制作成统一漫画 IP 的横屏旁白视频。
 ```
 
+
+
 安装完成后可以直接说：
 
 ```text
