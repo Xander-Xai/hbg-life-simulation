@@ -1,6 +1,6 @@
 ---
 name: hbg-life-simulation
-description: Create Chinese HBG “模拟人生 / 人生副本” narrative videos with a consistent comic IP, a rapid multi-life opening, continuous natural-speed narration, synchronized short captions, dense static manga storyboards, audible fixed-level BGM, and alternating zoom/pan motion in HyperFrames. Use for 模拟人生、人生副本、统一主角漫画、快闪职业开头、旁白配图、静态漫画分镜、zoom 推拉、左右平移、Edge TTS、字幕压制，或把长篇中文人生故事组装成视频。
+description: Create Chinese HBG “模拟人生 / 人生副本” narrative videos with a consistent comic IP, a rapid multi-life opening, continuous natural-speed narration, synchronized short captions, dense static manga storyboards, audible fixed-level BGM, alternating zoom/pan motion in HyperFrames, and an optional localhost-only account-backed Images API through CLIProxyAPI. Use for 模拟人生、人生副本、统一主角漫画、快闪职业开头、旁白配图、静态漫画分镜、zoom 推拉、左右平移、Edge TTS、字幕压制、本地反代自己的 Codex 账号、CLIProxyAPI，或把长篇中文人生故事组装成视频。
 ---
 
 # HBG Life Simulation
@@ -45,6 +45,8 @@ node scripts/init_project_style.mjs PROJECT_DIR
 # Only when the user explicitly asks for portrait / 9:16 / vertical video
 node scripts/init_project_style.mjs PROJECT_DIR --orientation portrait
 ```
+
+If the user explicitly wants to expose an account they own as a local compatible API, read [references/local-account-api.md](references/local-account-api.md) and use `scripts/setup_local_cliproxyapi.sh`. Never start OAuth silently, never copy account records into a project, and never bind the proxy beyond `127.0.0.1`. Treat this channel as optional; it does not bypass quotas or replace the running Codex application's own transport.
 
 If the user does not specify orientation, always use landscape. Portrait is supported but never inferred from short-video subject matter, platform, or a previous project. Read [references/style-system.md](references/style-system.md). Do not author separate HTML and ASS style constants, and never copy raw landscape caption/crop coordinates into portrait or vice versa.
 
@@ -118,7 +120,7 @@ Use built-in ImageGen. Generate strict 2×2 sheets only when four related, low-r
 
 Opening flash sheets must preserve the target orientation at the panel level. For a landscape project, use standalone landscape images or strict 2×2 sheets whose individual panels are landscape; never split a 5×2 landscape sheet into ten portrait cells and then enlarge them with `object-fit: cover`. Resolve every final flash asset to the exact canvas size before composition building: 1920×1080 for landscape or 1080×1920 for portrait. `validate_style_system.mjs` treats a mismatched flash asset as a hard failure.
 
-Built-in ImageGen remains the default. When the user explicitly provides or selects an OpenAI-compatible Images API, read [references/image-generation.md](references/image-generation.md) and use the bundled imagegen CLI batch path. Never store an API key in the project, skill, prompt JSONL, shell history file, or report. After the anchor is approved, independent sheets may run concurrently; default to 5 and cap concurrency at 10. Treat one sheet or standalone frame as one generation job. API output must still be displayed visibly in chat, saved project-locally, inspected, and counted.
+Built-in ImageGen remains the default. When the user explicitly provides, selects, or initializes an OpenAI-compatible Images API, read [references/image-generation.md](references/image-generation.md) and use the bundled imagegen CLI batch path. A user-approved CLIProxyAPI localhost endpoint may supply this path only after `/v1/models` and one deliberate image smoke test pass. Never store an API key in the project, skill, prompt JSONL, shell history file, or report. After the anchor is approved, independent sheets may run concurrently; default to 5 and cap concurrency at 10. Treat one sheet or standalone frame as one generation job. API output must still be displayed visibly in chat, saved project-locally, inspected, and counted.
 
 For API batches, create `assets/generated/prompts/SHEET_MAP.json` before generation. Map every job to final scene IDs in panel order and prove that every storyboard scene is covered exactly once. Generate into a dedicated staging directory. Some compatible providers or CLI versions flatten `out` subdirectories to basenames when `--out-dir` is used; never assume `sheets/g01.png` will remain nested. Resolve staged files by verified basename, reject collisions, then copy sheets and singles into canonical project directories.
 
@@ -208,3 +210,4 @@ Regenerate identity-drifted sheets. Never conceal bad faces or sparse storyboard
 - `scripts/render_long_video.sh`: run revision-safe long-form HyperFrames rendering with chunked encoding and an extended timeout.
 - `scripts/render_streaming_ffmpeg.mjs`: low-disk fallback that renders each still to a short zoom/pan segment, concatenates, burns captions, and mixes the final audio without writing every timeline frame.
 - `scripts/verify_final_video.sh`: probe the encoded MP4, scan black/silent intervals and loudness, extract named QA frames, and build a contact sheet.
+- `scripts/setup_local_cliproxyapi.sh`: optionally install a checksum-verified CLIProxyAPI release outside projects, obtain explicit OAuth consent, bind a user-owned account to localhost, and create a protected OpenAI-compatible client environment for batch work.

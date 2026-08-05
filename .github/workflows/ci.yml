@@ -65,11 +65,16 @@ jobs:
           secret_patterns = (
               re.compile(r"gh[opsu]_[A-Za-z0-9]{20,}"),
               re.compile(r"(?i)bearer\s+[A-Za-z0-9._-]{20,}"),
+              re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b"),
+              re.compile(r"hbg-local-[a-f0-9]{32,}"),
+              re.compile(r"(?<![A-Fa-f0-9])[A-Fa-f0-9]{64}(?![A-Fa-f0-9])"),
           )
 
           for path in Path(".").rglob("*"):
               if not path.is_file() or ".git" in path.parts:
                   continue
+              assert path.name not in {"client.env", "config.yaml"}, f"local proxy secret file tracked: {path}"
+              assert "auths" not in path.parts and "logs" not in path.parts, f"local proxy state tracked: {path}"
               try:
                   text = path.read_text(encoding="utf-8")
               except UnicodeDecodeError:
@@ -91,3 +96,16 @@ jobs:
 
       - name: Check installer help
         run: ./install.sh --help
+
+      - name: Check optional local account API bootstrap
+        run: |
+          scripts/setup_local_cliproxyapi.sh --help
+          scripts/setup_local_cliproxyapi.sh bootstrap --dry-run --provider codex
+          if ./install.sh --with-local-proxy --target "$(mktemp -d)"; then
+            echo "installer must require explicit OAuth risk acceptance" >&2
+            exit 1
+          fi
+          test ! -e client.env
+          test ! -e config.yaml
+          test ! -d auths
+          test ! -d logs

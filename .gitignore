@@ -21,3 +21,9 @@ videos/
 projects/
 sessions/
 *.jsonl
+client.env
+config.yaml
+auths/
+logs/
+*.pid
+cliproxyapi-local/

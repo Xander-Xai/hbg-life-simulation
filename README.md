@@ -9,6 +9,7 @@
   <img src="https://img.shields.io/badge/Portrait-supported-32756a?style=flat-square" alt="Portrait supported" />
   <img src="https://img.shields.io/badge/TTS-Edge-0f766e?style=flat-square" alt="Edge TTS" />
   <img src="https://img.shields.io/badge/Visuals-ImageGen-2563eb?style=flat-square" alt="ImageGen" />
+  <img src="https://img.shields.io/badge/Local%20API-optional-0f766e?style=flat-square" alt="Optional local API" />
   <img src="https://img.shields.io/badge/QA-final%20MP4-25221f?style=flat-square" alt="Final MP4 QA" />
 </p>
 
@@ -81,6 +82,7 @@ hbg-life-simulation skill。
 | 字幕 | 真实 VTT 时间、语义短句、无句尾标点、横竖屏独立安全区 |
 | 分镜 | 真实音频驱动密度，静态漫画单图与 2×2 宫格混合 |
 | 生图 | 内置 ImageGen 默认；用户明确选择时支持兼容 Images API 批量并发 |
+| 本地账户 API | 可选接入 CLIProxyAPI，把用户自己的账户安全暴露为仅本机可访问的兼容接口 |
 | 镜头运动 | 交替 zoom-in、zoom-out、pan-left、pan-right 与情绪 hold |
 | 音频 | 连续旁白、快闪 SFX、固定增益 BGM 分轨混合 |
 | 渲染 | HyperFrames 组合；长片支持低磁盘流式 FFmpeg 压制 |
@@ -112,7 +114,42 @@ ${CODEX_HOME}/skills/hbg-life-simulation
 curl -fsSL https://raw.githubusercontent.com/Mr-funny/hbg-life-simulation/main/install.sh | sh -s -- --claude
 ```
 
-### 方法四：手动安装
+### 方法四：安装并初始化自己的本地账户 API（可选）
+
+下面的命令会额外下载经过 SHA-256 校验的 [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) 官方发布包，使用 Codex OAuth 登录用户自己的账户，并把服务限制在 `127.0.0.1`：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Mr-funny/hbg-life-simulation/main/install.sh | \
+  sh -s -- --with-local-proxy --proxy-provider codex --accept-oauth-risk
+```
+
+无浏览器回调环境可以使用设备登录：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Mr-funny/hbg-life-simulation/main/install.sh | \
+  sh -s -- --with-local-proxy --proxy-provider codex-device \
+  --proxy-no-browser --accept-oauth-risk
+```
+
+> [!WARNING]
+> CLIProxyAPI 是 MIT 许可的第三方 OAuth 代理，不是模型提供商的官方 API 客户端。它不会绕过订阅权限、限额、速率限制或服务条款。只允许登录用户本人拥有或获授权管理的账户。
+
+本地代理配置、客户端密钥和 OAuth 记录默认保存在项目目录之外，并使用受限文件权限。安装器不会修改 Codex 自身的连接配置；这个接口只供明确选择的兼容客户端和批处理脚本使用。
+
+生命周期命令：
+
+```bash
+SKILL_DIR="${CODEX_HOME:-$HOME/.codex}/skills/hbg-life-simulation"
+
+"$SKILL_DIR/scripts/setup_local_cliproxyapi.sh" status
+"$SKILL_DIR/scripts/setup_local_cliproxyapi.sh" smoke-test
+"$SKILL_DIR/scripts/setup_local_cliproxyapi.sh" stop
+"$SKILL_DIR/scripts/setup_local_cliproxyapi.sh" start
+```
+
+完整安全说明见 [references/local-account-api.md](references/local-account-api.md)。
+
+### 方法五：手动安装
 
 ```bash
 git clone https://github.com/Mr-funny/hbg-life-simulation.git
@@ -143,6 +180,15 @@ cp -R agents assets references scripts ~/.codex/skills/hbg-life-simulation/
 使用 $hbg-life-simulation，并使用我已配置在当前进程环境变量中的兼容 Images API。
 先生成主角锚点，再以并发 5 批量生成宫格和高风险单图。
 不得把 endpoint 或 API Key 写入项目、提示词、日志、README 或 Git 仓库。
+```
+
+### 使用自己账户的本地 Images API
+
+```text
+使用 $hbg-life-simulation，先按安全规则初始化 CLIProxyAPI，
+只绑定到 127.0.0.1，并使用我自己的 Codex 账户完成 OAuth。
+先通过 models 和单图测试，再以并发 5 生成项目素材；不要修改 Codex 自身连接配置，
+不要输出或保存 OAuth 记录、client.env、config.yaml 和本地客户端密钥。
 ```
 
 ### 只修复已有项目
@@ -216,6 +262,10 @@ node /path/to/hbg-life-simulation/scripts/validate_style_system.mjs PROJECT_DIR
 # 长片流式压制与最终检查
 node /path/to/hbg-life-simulation/scripts/render_streaming_ffmpeg.mjs PROJECT_DIR OUTPUT.mp4
 /path/to/hbg-life-simulation/scripts/verify_final_video.sh OUTPUT.mp4 QA_DIR 0.5:opening 5.0:title 60:body 600:ending
+
+# 可选：初始化用户自己的 localhost Images API
+/path/to/hbg-life-simulation/scripts/setup_local_cliproxyapi.sh bootstrap \
+  --provider codex --accept-oauth-risk
 ```
 
 ## 🧪 真实流程验证
@@ -247,6 +297,7 @@ node /path/to/hbg-life-simulation/scripts/render_streaming_ffmpeg.mjs PROJECT_DI
 | Python 3 + `edge-tts` | 连续中文旁白与 VTT |
 | HyperFrames | HTML 时间线、检查、开头预览与渲染 |
 | ImageGen 能力 | 漫画锚点、宫格和单图素材 |
+| CLIProxyAPI（可选） | 把用户自己的 Codex 等账户暴露为仅本机可访问的兼容 Images API |
 | `media-use` / visual QA skills | 音频与最终视觉检查，推荐安装 |
 
 仓库不包含模型权重、API Key、生成图片、故事文案、声音、BGM 或成片。
@@ -268,7 +319,10 @@ hbg-life-simulation/
 
 ## 🔐 隐私与素材边界
 
-- API Key 只能通过当前进程环境变量注入，禁止写入代码、项目、JSONL、报告或 Git 历史。
+- 外部提供商 API Key 只能通过当前进程环境变量注入，禁止写入代码、项目、JSONL、报告或 Git 历史；本地 loopback 客户端密钥只能保存在项目外的受限配置中。
+- CLIProxyAPI 的 `config.yaml`、`client.env`、OAuth `auths/` 和日志必须位于项目与 Git 工作区之外；本地服务只绑定 `127.0.0.1`。
+- 本地生成的客户端密钥只用于访问 loopback 代理，不是提供商 OAuth token；两者都禁止打印、上传或提交。
+- 不得使用代理绕过账户权限、配额、速率限制或服务条款，也不得登录不属于用户或未经授权的账户。
 - 禁止提交用户原始文案、会话日志、生成图片、音频、BGM、视频与 QA 帧。
 - API 提示词记录只能保存提示词、模型、尺寸、成功/失败状态，不能保存凭据。
 - 兼容 API 可能返回不同尺寸或扁平化输出路径，所有输出必须在本地 staging 后校验。

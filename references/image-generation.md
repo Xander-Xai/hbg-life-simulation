@@ -4,6 +4,7 @@
 
 - Default to the built-in `image_gen` tool.
 - Use an API/CLI path only when the user explicitly requests it or provides an OpenAI-compatible endpoint.
+- If the user wants to use an account they own through a localhost API, read [local-account-api.md](local-account-api.md) and initialize CLIProxyAPI only after explicit OAuth-risk acceptance.
 - Read the system `imagegen` skill before either path.
 
 ## Built-in path
@@ -27,6 +28,8 @@ OPENAI_API_KEY="..." OPENAI_BASE_URL="https://example.invalid/v1" \
 Rules:
 
 - Inject credentials only through the current process environment. Never write them into repository files, scripts, prompt JSONL, skill files, logs, or final reports.
+- For the optional CLIProxyAPI path, source its protected `client.env` outside the project. The generated `OPENAI_API_KEY` is only a localhost client credential; never substitute or expose the provider OAuth record.
+- Before a large local-account batch, require a successful authenticated `/v1/models` check and one visible single-image test. Fall back when the account lacks image entitlement.
 - Use one JSONL job per distinct 2×2 sheet or standalone frame. Default concurrency is 5; do not exceed 10.
 - Write `assets/generated/prompts/SHEET_MAP.json` before the call. It must map each job to final scene IDs in top-left, top-right, bottom-left, bottom-right order and cover every scene exactly once.
 - Specify the exact output filename, orientation, quality, panel order, anchor traits, exact participant count, allowed characters, and forbidden extra characters in every job.
