@@ -27,9 +27,10 @@ dry_run=false
 usage() {
   cat <<'EOF'
 Usage:
-  setup_local_cliproxyapi.sh [bootstrap|install|login|start|stop|status|smoke-test|env-path] [options]
+  setup_local_cliproxyapi.sh [ready|bootstrap|install|login|start|stop|status|smoke-test|env-path] [options]
 
 Commands:
+  ready       Check whether the managed local API is configured, running, and healthy.
   bootstrap   Install, create a localhost-only config, log in, start, and test.
   install     Install the verified CLIProxyAPI release and create local config only.
   login       Run the selected provider OAuth flow.
@@ -115,7 +116,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$command_name" in
-  bootstrap|install|login|start|stop|status|smoke-test|env-path) ;;
+  ready|bootstrap|install|login|start|stop|status|smoke-test|env-path) ;;
   *) die "unknown command: $command_name" ;;
 esac
 
@@ -433,10 +434,12 @@ start_proxy() {
   rm -f "$pid_path"
   mkdir -p "$logs_dir"
   chmod 700 "$logs_dir"
+  : > "$log_path"
+  chmod 600 "$log_path"
   nohup "$binary_path" -config "$config_path" > "$log_path" 2>&1 &
   proxy_pid=$!
   printf '%s\n' "$proxy_pid" > "$pid_path"
-  chmod 600 "$pid_path" "$log_path"
+  chmod 600 "$pid_path"
 
   for _ in {1..40}; do
     if kill -0 "$proxy_pid" 2>/dev/null && curl --silent --output /dev/null "http://127.0.0.1:$port/"; then
@@ -493,6 +496,34 @@ smoke_test() {
   echo "Local authenticated API smoke test: OK ($OPENAI_BASE_URL/models)"
 }
 
+ready_check() {
+  if [[ ! -x "$binary_path" || ! -f "$config_path" || ! -f "$env_path" ]]; then
+    echo "not-configured"
+    exit 3
+  fi
+  if ! pid_is_ours; then
+    echo "not-running"
+    exit 4
+  fi
+
+  load_client_env
+  local response_file http_code
+  response_file=$(mktemp)
+  if ! http_code=$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+      --header "Authorization: Bearer $OPENAI_API_KEY" \
+      "$OPENAI_BASE_URL/models"); then
+    rm -f "$response_file"
+    echo "unhealthy"
+    exit 5
+  fi
+  rm -f "$response_file"
+  if [[ "$http_code" != "200" ]]; then
+    echo "unhealthy"
+    exit 5
+  fi
+  echo "ready"
+}
+
 show_status() {
   if pid_is_ours; then
     echo "process: running (PID $(tr -d '[:space:]' < "$pid_path"))"
@@ -505,6 +536,9 @@ show_status() {
 }
 
 case "$command_name" in
+  ready)
+    ready_check
+    ;;
   bootstrap)
     print_plan
     install_release

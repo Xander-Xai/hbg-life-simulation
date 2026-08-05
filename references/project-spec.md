@@ -25,6 +25,13 @@ Required shape:
     "captionMinChars": 6,
     "captionMinDuration": 0.55
   },
+  "imageGeneration": {
+    "channel": "local-account-api",
+    "consent": "explicit",
+    "provider": "codex",
+    "model": "gpt-image-2",
+    "concurrency": 5
+  },
   "opening": {
     "leadDisplayText": "今天体验的人生副本是……",
     "flashMedia": "assets/opening/flash.mp4",
@@ -45,6 +52,8 @@ Rules:
 - Use any reasonable chapter count. Builders derive headings, act labels, sub-compositions, and timing from the array length.
 - Make each chapter cue unique and ordered after corrections.
 - Keep character identity in `CHARACTERS.md`, not in this shared specification or a builder.
+- Set `imageGeneration.channel` to `local-account-api`, `built-in-imagegen`, or `external-compatible-api`. Record `consent`, provider label, model, and concurrency only; never record an endpoint, key, token, Cookie, OAuth path, account identity, or contents of protected proxy files.
+- Use `local-account-api` only after the Skill consent/readiness gate. Use `built-in-imagegen` after decline or unavailable entitlement. Keep API concurrency at 5 by default and never above 10.
 - Keep orientation-dependent pixels in `HBG_STYLE.json`, never in `PROJECT_SPEC.json`.
 - Keep semantic scene selection in `STORYBOARD_BASE.json`; code may validate it but must not invent example-specific beats.
 - Use `captionMaxChars=18` as the usual landscape ceiling and `14` as the usual portrait ceiling. Generated splits must meet `captionMinChars`; only a complete original utterance may set the short-caption exception.

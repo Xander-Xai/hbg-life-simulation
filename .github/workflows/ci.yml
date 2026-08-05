@@ -97,10 +97,56 @@ jobs:
       - name: Check installer help
         run: ./install.sh --help
 
-      - name: Check optional local account API bootstrap
+      - name: Check consent-gated local account API bootstrap
         run: |
           scripts/setup_local_cliproxyapi.sh --help
           scripts/setup_local_cliproxyapi.sh bootstrap --dry-run --provider codex
+          empty_root=$(mktemp -d)
+          set +e
+          ready_output=$(scripts/setup_local_cliproxyapi.sh ready --root "$empty_root")
+          ready_code=$?
+          set -e
+          test "$ready_output" = "not-configured"
+          test "$ready_code" -eq 3
+          test ! -e "$empty_root/OAUTH_RISK_ACCEPTED"
+
+          state_root=$(mktemp -d)
+          mkdir -p "$state_root/bin" "$state_root/auths" "$state_root/logs"
+          cp .github/tests/mock_cliproxy.py "$state_root/bin/cli-proxy-api"
+          chmod 700 "$state_root" "$state_root/bin" "$state_root/auths" "$state_root/logs" "$state_root/bin/cli-proxy-api"
+          printf '%s\n' \
+            'host: "127.0.0.1"' \
+            'port: 18317' \
+            "auth-dir: \"$state_root/auths\"" \
+            'api-keys:' \
+            '  - "hbg-test-local-only"' > "$state_root/config.yaml"
+          printf '%s\n' \
+            "export OPENAI_BASE_URL='http://127.0.0.1:18317/v1'" \
+            "export OPENAI_API_KEY='hbg-test-local-only'" \
+            "export HBG_IMAGE_MODEL='gpt-image-2'" > "$state_root/client.env"
+          chmod 600 "$state_root/config.yaml" "$state_root/client.env"
+
+          set +e
+          stopped_output=$(scripts/setup_local_cliproxyapi.sh ready --root "$state_root" --port 18317)
+          stopped_code=$?
+          set -e
+          test "$stopped_output" = "not-running"
+          test "$stopped_code" -eq 4
+
+          HBG_TEST_HTTP_CODE=401 scripts/setup_local_cliproxyapi.sh start --root "$state_root" --port 18317
+          set +e
+          unhealthy_output=$(scripts/setup_local_cliproxyapi.sh ready --root "$state_root" --port 18317)
+          unhealthy_code=$?
+          set -e
+          test "$unhealthy_output" = "unhealthy"
+          test "$unhealthy_code" -eq 5
+          scripts/setup_local_cliproxyapi.sh stop --root "$state_root" --port 18317
+
+          HBG_TEST_HTTP_CODE=200 scripts/setup_local_cliproxyapi.sh start --root "$state_root" --port 18317
+          test "$(scripts/setup_local_cliproxyapi.sh ready --root "$state_root" --port 18317)" = "ready"
+          scripts/setup_local_cliproxyapi.sh stop --root "$state_root" --port 18317
+          test ! -e "$state_root/OAUTH_RISK_ACCEPTED"
+
           if ./install.sh --with-local-proxy --target "$(mktemp -d)"; then
             echo "installer must require explicit OAuth risk acceptance" >&2
             exit 1

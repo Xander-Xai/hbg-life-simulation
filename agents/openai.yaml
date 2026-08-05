@@ -1,4 +1,4 @@
 interface:
   display_name: "HBG 模拟人生"
   short_description: "统一漫画 IP、快闪开头、旁白同步、密集分镜与成片质检"
-  default_prompt: "使用 $hbg-life-simulation 将这段中文人生故事制作成统一 IP 的静态漫画旁白视频；如需并发 API 生图，先安全初始化用户自己的本地账户代理。"
+  default_prompt: "使用 $hbg-life-simulation 将这段中文人生故事制作成统一 IP 的静态漫画旁白视频；先询问是否使用我的本地账户代理，若需安装或登录由我本人完成 OAuth。"

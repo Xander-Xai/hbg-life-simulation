@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/Portrait-supported-32756a?style=flat-square" alt="Portrait supported" />
   <img src="https://img.shields.io/badge/TTS-Edge-0f766e?style=flat-square" alt="Edge TTS" />
   <img src="https://img.shields.io/badge/Visuals-ImageGen-2563eb?style=flat-square" alt="ImageGen" />
-  <img src="https://img.shields.io/badge/Local%20API-optional-0f766e?style=flat-square" alt="Optional local API" />
+  <img src="https://img.shields.io/badge/Local%20API-preferred-0f766e?style=flat-square" alt="Preferred local API" />
   <img src="https://img.shields.io/badge/QA-final%20MP4-25221f?style=flat-square" alt="Final MP4 QA" />
 </p>
 
@@ -49,6 +49,8 @@ hbg-life-simulation skill。
 使用 HBG 快闪开头、交替 zoom/pan、恒定 BGM，最后输出并检查完整 MP4。
 ```
 
+Skill 会先做一次不读取凭据内容的本地代理就绪检查，然后针对每个新视频项目询问是否使用用户自己的账号生图。即使代理已经就绪，也不能把“调用 Skill”当成账户额度使用或 OAuth 同意。用户同意后，登录仍由用户本人在浏览器或设备码页面完成；用户拒绝或账户没有图片权限时，才回退到内置 ImageGen。
+
 | 统一 IP | 连续旁白 | 语义分镜 | 最终质检 |
 |:---:|:---:|:---:|:---:|
 | 锚点人物 + 固定特征 | 一篇正文一条音轨 | 4–8 秒静态漫画镜头 | 检查编码后的 MP4 |
@@ -81,8 +83,8 @@ hbg-life-simulation skill。
 | TTS | 正文一条连续 Edge TTS，默认 `+0%` 自然语速 |
 | 字幕 | 真实 VTT 时间、语义短句、无句尾标点、横竖屏独立安全区 |
 | 分镜 | 真实音频驱动密度，静态漫画单图与 2×2 宫格混合 |
-| 生图 | 内置 ImageGen 默认；用户明确选择时支持兼容 Images API 批量并发 |
-| 本地账户 API | 可选接入 CLIProxyAPI，把用户自己的账户安全暴露为仅本机可访问的兼容接口 |
+| 生图 | 默认优先使用用户自己的 localhost CLIProxyAPI；拒绝或不可用时回退内置 ImageGen |
+| 本地账户 API | 每个项目先确认；安装、启动、修复或 OAuth 前再次明确说明，用户本人完成登录 |
 | 镜头运动 | 交替 zoom-in、zoom-out、pan-left、pan-right 与情绪 hold |
 | 音频 | 连续旁白、快闪 SFX、固定增益 BGM 分轨混合 |
 | 渲染 | HyperFrames 组合；长片支持低磁盘流式 FFmpeg 压制 |
@@ -114,7 +116,7 @@ ${CODEX_HOME}/skills/hbg-life-simulation
 curl -fsSL https://raw.githubusercontent.com/Mr-funny/hbg-life-simulation/main/install.sh | sh -s -- --claude
 ```
 
-### 方法四：安装并初始化自己的本地账户 API（可选）
+### 方法四：明确同意后安装并初始化自己的本地账户 API
 
 下面的命令会额外下载经过 SHA-256 校验的 [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) 官方发布包，使用 Codex OAuth 登录用户自己的账户，并把服务限制在 `127.0.0.1`：
 
@@ -134,6 +136,8 @@ curl -fsSL https://raw.githubusercontent.com/Mr-funny/hbg-life-simulation/main/i
 > [!WARNING]
 > CLIProxyAPI 是 MIT 许可的第三方 OAuth 代理，不是模型提供商的官方 API 客户端。它不会绕过订阅权限、限额、速率限制或服务条款。只允许登录用户本人拥有或获授权管理的账户。
 
+这组命令本身就是用户的明确操作与风险确认。Agent 不得自行替用户运行带 `--with-local-proxy`、`bootstrap`、`login` 或 `--accept-oauth-risk` 的命令；必须先在当前对话中询问并获得清晰同意。OAuth 页面和设备码页面只能由用户本人操作。
+
 本地代理配置、客户端密钥和 OAuth 记录默认保存在项目目录之外，并使用受限文件权限。安装器不会修改 Codex 自身的连接配置；这个接口只供明确选择的兼容客户端和批处理脚本使用。
 
 生命周期命令：
@@ -142,6 +146,7 @@ curl -fsSL https://raw.githubusercontent.com/Mr-funny/hbg-life-simulation/main/i
 SKILL_DIR="${CODEX_HOME:-$HOME/.codex}/skills/hbg-life-simulation"
 
 "$SKILL_DIR/scripts/setup_local_cliproxyapi.sh" status
+"$SKILL_DIR/scripts/setup_local_cliproxyapi.sh" ready
 "$SKILL_DIR/scripts/setup_local_cliproxyapi.sh" smoke-test
 "$SKILL_DIR/scripts/setup_local_cliproxyapi.sh" stop
 "$SKILL_DIR/scripts/setup_local_cliproxyapi.sh" start
@@ -167,6 +172,8 @@ cp -R agents assets references scripts ~/.codex/skills/hbg-life-simulation/
 默认横屏，使用同一个漫画主角贯穿故事，语音不要加速，字幕跟声音同步。
 ```
 
+每个新项目开始时，Skill 默认会询问是否使用你自己的 localhost 账号接口生图；回答“不”即可改用内置 ImageGen，不会启动安装或登录。
+
 ### 明确指定竖屏
 
 ```text
@@ -182,7 +189,7 @@ cp -R agents assets references scripts ~/.codex/skills/hbg-life-simulation/
 不得把 endpoint 或 API Key 写入项目、提示词、日志、README 或 Git 仓库。
 ```
 
-### 使用自己账户的本地 Images API
+### 明确同意使用自己账户的本地 Images API
 
 ```text
 使用 $hbg-life-simulation，先按安全规则初始化 CLIProxyAPI，
@@ -202,16 +209,24 @@ cp -R agents assets references scripts ~/.codex/skills/hbg-life-simulation/
 
 ```mermaid
 flowchart LR
-    A["中文人生长文案"] --> B["保存原文与最小纠错"]
-    B --> C["锁定主角漫画 IP"]
-    C --> D["连续 Edge TTS + VTT"]
-    D --> E["真实时长分镜"]
-    E --> F["宫格 / 单图生成"]
-    F --> G["HBG 快闪开头"]
-    G --> H["HyperFrames zoom / pan"]
-    H --> I["固定 BGM 混音"]
-    I --> J["长片流式压制"]
-    J --> K["最终 MP4 QA"]
+    A["中文人生长文案"] --> B["检查本地代理"]
+    B --> C{"本项目是否使用本地账号？"}
+    C -->|"拒绝"| D["回退内置 ImageGen"]
+    C -->|"同意"| E{"代理已就绪？"}
+    E -->|"否"| F["用户本人完成安装 / OAuth"]
+    E -->|"是"| G["使用 localhost Images API"]
+    F --> G
+    D --> H["保存原文与最小纠错"]
+    G --> H
+    H --> I["锁定主角漫画 IP"]
+    I --> J["连续 Edge TTS + VTT"]
+    J --> K["真实时长分镜"]
+    K --> L["宫格 / 单图生成"]
+    L --> M["HBG 快闪开头"]
+    M --> N["HyperFrames zoom / pan"]
+    N --> O["固定 BGM 混音"]
+    O --> P["长片流式压制"]
+    P --> Q["最终 MP4 QA"]
 ```
 
 关键原则：
@@ -263,7 +278,10 @@ node /path/to/hbg-life-simulation/scripts/validate_style_system.mjs PROJECT_DIR
 node /path/to/hbg-life-simulation/scripts/render_streaming_ffmpeg.mjs PROJECT_DIR OUTPUT.mp4
 /path/to/hbg-life-simulation/scripts/verify_final_video.sh OUTPUT.mp4 QA_DIR 0.5:opening 5.0:title 60:body 600:ending
 
-# 可选：初始化用户自己的 localhost Images API
+# 只做非敏感就绪检查
+/path/to/hbg-life-simulation/scripts/setup_local_cliproxyapi.sh ready
+
+# 仅在当前对话明确同意后：初始化用户自己的 localhost Images API
 /path/to/hbg-life-simulation/scripts/setup_local_cliproxyapi.sh bootstrap \
   --provider codex --accept-oauth-risk
 ```
@@ -297,7 +315,7 @@ node /path/to/hbg-life-simulation/scripts/render_streaming_ffmpeg.mjs PROJECT_DI
 | Python 3 + `edge-tts` | 连续中文旁白与 VTT |
 | HyperFrames | HTML 时间线、检查、开头预览与渲染 |
 | ImageGen 能力 | 漫画锚点、宫格和单图素材 |
-| CLIProxyAPI（可选） | 把用户自己的 Codex 等账户暴露为仅本机可访问的兼容 Images API |
+| CLIProxyAPI（首选，需同意） | 把用户自己的 Codex 等账户暴露为仅本机可访问的兼容 Images API；失败时回退内置 ImageGen |
 | `media-use` / visual QA skills | 音频与最终视觉检查，推荐安装 |
 
 仓库不包含模型权重、API Key、生成图片、故事文案、声音、BGM 或成片。
@@ -321,6 +339,8 @@ hbg-life-simulation/
 
 - 外部提供商 API Key 只能通过当前进程环境变量注入，禁止写入代码、项目、JSONL、报告或 Git 历史；本地 loopback 客户端密钥只能保存在项目外的受限配置中。
 - CLIProxyAPI 的 `config.yaml`、`client.env`、OAuth `auths/` 和日志必须位于项目与 Git 工作区之外；本地服务只绑定 `127.0.0.1`。
+- Agent 可执行不泄露内容的 `ready` 状态检查，但每个新项目使用账户额度前都必须确认；安装、启动、修复、登录和 OAuth 前必须再次明确说明，不得从调用 Skill 推断用户同意。
+- 用户必须亲自在浏览器或设备码页面完成登录；Agent 不读取账号页、Cookie、浏览器存储、OAuth 文件、`client.env` 或本地客户端密钥。
 - 本地生成的客户端密钥只用于访问 loopback 代理，不是提供商 OAuth token；两者都禁止打印、上传或提交。
 - 不得使用代理绕过账户权限、配额、速率限制或服务条款，也不得登录不属于用户或未经授权的账户。
 - 禁止提交用户原始文案、会话日志、生成图片、音频、BGM、视频与 QA 帧。

@@ -1,23 +1,35 @@
 # Local account API with CLIProxyAPI
 
-Use this optional path only when the user explicitly wants to expose an account they own as a local OpenAI-compatible API for HBG batch work.
+Use this as the preferred HBG image channel only after a per-project explicit consent gate. The Skill must check readiness first, ask before consuming account capacity and before installation, startup, repair, login, or OAuth, and use built-in ImageGen when the user declines or the account lacks image entitlement.
 
 CLIProxyAPI is a third-party MIT-licensed project: <https://github.com/router-for-me/CLIProxyAPI>. It supports Codex, Claude, Antigravity, Kimi, and xAI OAuth, plus OpenAI-compatible Responses and Images endpoints. It is not an official provider client and does not bypass quotas, entitlements, rate limits, or provider terms.
 
 ## Security contract
 
+- Treat Skill invocation and a request to make a video as insufficient consent to use account capacity, set up the proxy, or start OAuth.
+- Require a fresh confirmation before using the local account channel for each new video project, even when the proxy is already ready.
 - Require explicit OAuth-risk acceptance before login.
+- Ask before starting a configured but stopped proxy.
 - Use only accounts owned or administered by the user.
 - Bind to `127.0.0.1`; never expose the proxy on `0.0.0.0`, a LAN address, a tunnel, or a public server.
 - Disable remote management and the management panel.
 - Store the binary, config, local client key, OAuth records, PID, and logs outside every project and Git worktree.
 - Use permissions `0700` for credential directories and `0600` for config and environment files.
 - Never print, paste, summarize, upload, or commit provider OAuth records or the generated local client key.
+- Never inspect browser cookies, browser storage, account pages, `auths/`, `client.env`, or provider OAuth files. The user completes browser/device authentication personally.
 - Do not patch the running Codex application's own transport configuration. Use the local endpoint only from explicit compatible clients and batch scripts.
 
 ## Bootstrap
 
-From the installed skill directory:
+First run the read-only readiness check:
+
+```bash
+scripts/setup_local_cliproxyapi.sh ready
+```
+
+It returns exactly one non-secret state: `ready`, `not-configured`, `not-running`, or `unhealthy`. Do not install, start, repair, or log in until the user has agreed after seeing the third-party, account-capacity, and OAuth disclosure.
+
+After consent, from the installed skill directory:
 
 ```bash
 scripts/setup_local_cliproxyapi.sh bootstrap \
@@ -35,6 +47,8 @@ scripts/setup_local_cliproxyapi.sh bootstrap \
 ```
 
 The script downloads a pinned upstream release, verifies its published SHA-256 checksum, creates a localhost-only configuration, runs OAuth, starts the service, and checks the authenticated `/v1/models` endpoint.
+
+OAuth is an interactive user action. The Agent may launch the flow or display the device code only after consent, but must not operate the provider login page, read the account, retrieve cookies, or inspect the resulting OAuth files.
 
 Default local state:
 
@@ -59,6 +73,7 @@ source "$(scripts/setup_local_cliproxyapi.sh env-path)"
 
 ```bash
 scripts/setup_local_cliproxyapi.sh status
+scripts/setup_local_cliproxyapi.sh ready
 scripts/setup_local_cliproxyapi.sh smoke-test
 scripts/setup_local_cliproxyapi.sh stop
 scripts/setup_local_cliproxyapi.sh start

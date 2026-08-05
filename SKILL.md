@@ -1,6 +1,6 @@
 ---
 name: hbg-life-simulation
-description: Create Chinese HBG “模拟人生 / 人生副本” narrative videos with a consistent comic IP, a rapid multi-life opening, continuous natural-speed narration, synchronized short captions, dense static manga storyboards, audible fixed-level BGM, alternating zoom/pan motion in HyperFrames, and an optional localhost-only account-backed Images API through CLIProxyAPI. Use for 模拟人生、人生副本、统一主角漫画、快闪职业开头、旁白配图、静态漫画分镜、zoom 推拉、左右平移、Edge TTS、字幕压制、本地反代自己的 Codex 账号、CLIProxyAPI，或把长篇中文人生故事组装成视频。
+description: Create Chinese HBG “模拟人生 / 人生副本” narrative videos with a consistent comic IP, a rapid multi-life opening, continuous natural-speed narration, synchronized short captions, dense static manga storyboards, audible fixed-level BGM, alternating zoom/pan motion in HyperFrames, and a consent-gated localhost-only account-backed Images API through CLIProxyAPI as the preferred image channel. Use for 模拟人生、人生副本、统一主角漫画、快闪职业开头、旁白配图、静态漫画分镜、zoom 推拉、左右平移、Edge TTS、字幕压制、本地反代自己的 Codex 账号、CLIProxyAPI，或把长篇中文人生故事组装成视频。
 ---
 
 # HBG Life Simulation
@@ -36,6 +36,44 @@ Never silently rewrite plot, viewpoint, tone, ending, or character motivation.
 
 ## Workflow
 
+### 0. Select the image channel before project work
+
+Read [references/local-account-api.md](references/local-account-api.md) and [references/image-generation.md](references/image-generation.md). Run this read-only readiness check before initializing a new HBG project:
+
+```bash
+scripts/setup_local_cliproxyapi.sh ready
+```
+
+Prefer the user's own localhost CLIProxyAPI account channel, but require explicit confirmation for each new project before consuming account capacity. Never treat invoking this Skill as consent to use the account, install software, start the proxy, start OAuth, log in, or repair an account session.
+
+- If the result is `ready`, tell the user a local account API is available and ask whether to use it for this project. Select `local-account-api` only after the user agrees; do not manually open, print, or summarize its protected environment or OAuth files.
+- If the result is `not-running`, ask before starting the configured local proxy.
+- If the result is `not-configured` or `unhealthy`, explicitly ask whether to initialize or repair CLIProxyAPI with the user's own account. State that CLIProxyAPI is a third-party proxy, the user must complete browser/device login personally, the flow remains subject to account permissions, quotas, and provider terms, and the setup includes a models check plus one image smoke test that consumes account capacity.
+- Do not start image generation, run `start`, `install`, `bootstrap`, `login`, or an OAuth-capable installer command until the user clearly agrees in the current conversation. Do not infer consent from the story request or Skill invocation.
+- Never ask the user to paste an account password, Cookie, OAuth record, access token, or API key. Never inspect `auths/`, `client.env`, browser storage, cookies, or provider account data.
+- After consent, let the user complete OAuth in the browser or device-code page. Run only non-secret readiness/models checks and the disclosed single-image test.
+- If the user declines, the account lacks image entitlement, or the local channel cannot be made healthy without further account action, select `built-in-imagegen` and continue.
+
+Use this consent prompt or a concise equivalent:
+
+```text
+是否使用你自己的账号在本机初始化 CLIProxyAPI，作为本次人生副本的默认生图接口？
+
+这会安装第三方 CLIProxyAPI，并打开浏览器或显示设备码，由你本人完成登录。Agent 不会读取账号、Cookie、OAuth 文件或密钥。初始化后会检查 models，并生成 1 张测试图验证图片权限；这会消耗你的账户额度，且仍受账户权限、配额和服务条款限制。
+
+是否继续？
+```
+
+When the result is already `ready`, use a shorter prompt that still discloses account usage:
+
+```text
+检测到你已配置好的本地 CLIProxyAPI。是否使用你自己的账号为本项目生成图片？这会消耗你的账户额度，并仍受账户权限、配额和服务条款限制。
+```
+
+Record only the selected channel, consent state, provider label, model, and concurrency in `PROJECT_SPEC.json`. Never record an endpoint, key, OAuth path, token, Cookie, or account identifier.
+
+### Initialize the project style
+
 Before step 1, initialize and read the style system:
 
 ```bash
@@ -45,8 +83,6 @@ node scripts/init_project_style.mjs PROJECT_DIR
 # Only when the user explicitly asks for portrait / 9:16 / vertical video
 node scripts/init_project_style.mjs PROJECT_DIR --orientation portrait
 ```
-
-If the user explicitly wants to expose an account they own as a local compatible API, read [references/local-account-api.md](references/local-account-api.md) and use `scripts/setup_local_cliproxyapi.sh`. Never start OAuth silently, never copy account records into a project, and never bind the proxy beyond `127.0.0.1`. Treat this channel as optional; it does not bypass quotas or replace the running Codex application's own transport.
 
 If the user does not specify orientation, always use landscape. Portrait is supported but never inferred from short-video subject matter, platform, or a previous project. Read [references/style-system.md](references/style-system.md). Do not author separate HTML and ASS style constants, and never copy raw landscape caption/crop coordinates into portrait or vice versa.
 
@@ -116,11 +152,11 @@ Before building API prompts, write `participants.count` and `participants.allowe
 
 ### 6. Generate scene art
 
-Use built-in ImageGen. Generate strict 2×2 sheets only when four related, low-risk beats share characters and setting. Require equal panels, uniform black gutters, no text, no captions, no speech bubbles, no logos, and no watermark. Generate high-risk frames as standalone images rather than grid panels: hand close-ups, overlapping limbs, phone front/back orientation, typing, smoking, chopsticks, soldering or other tool contact, and identity-critical hero shots. If a grid panel fails one of these checks, regenerate that beat alone; never rescue it by cropping around the defect.
+Use the image channel selected in step 0. Generate strict 2×2 sheets only when four related, low-risk beats share characters and setting. Require equal panels, uniform black gutters, no text, no captions, no speech bubbles, no logos, and no watermark. Generate high-risk frames as standalone images rather than grid panels: hand close-ups, overlapping limbs, phone front/back orientation, typing, smoking, chopsticks, soldering or other tool contact, and identity-critical hero shots. If a grid panel fails one of these checks, regenerate that beat alone; never rescue it by cropping around the defect.
 
 Opening flash sheets must preserve the target orientation at the panel level. For a landscape project, use standalone landscape images or strict 2×2 sheets whose individual panels are landscape; never split a 5×2 landscape sheet into ten portrait cells and then enlarge them with `object-fit: cover`. Resolve every final flash asset to the exact canvas size before composition building: 1920×1080 for landscape or 1080×1920 for portrait. `validate_style_system.mjs` treats a mismatched flash asset as a hard failure.
 
-Built-in ImageGen remains the default. When the user explicitly provides, selects, or initializes an OpenAI-compatible Images API, read [references/image-generation.md](references/image-generation.md) and use the bundled imagegen CLI batch path. A user-approved CLIProxyAPI localhost endpoint may supply this path only after `/v1/models` and one deliberate image smoke test pass. Never store an API key in the project, skill, prompt JSONL, shell history file, or report. After the anchor is approved, independent sheets may run concurrently; default to 5 and cap concurrency at 10. Treat one sheet or standalone frame as one generation job. API output must still be displayed visibly in chat, saved project-locally, inspected, and counted.
+The user-owned localhost CLIProxyAPI path is the preferred default after the consent and readiness gate in step 0. Built-in ImageGen is the fallback after decline, failed entitlement, or an unavailable local channel. A user-approved CLIProxyAPI localhost endpoint may supply the bundled imagegen CLI path only after `/v1/models` and one disclosed image smoke test pass. Never store an API key in the project, skill, prompt JSONL, shell history file, or report. After the anchor is approved, independent sheets may run concurrently; default to 5 and cap concurrency at 10. Treat one sheet or standalone frame as one generation job. API output must still be displayed visibly in chat, saved project-locally, inspected, and counted.
 
 For API batches, create `assets/generated/prompts/SHEET_MAP.json` before generation. Map every job to final scene IDs in panel order and prove that every storyboard scene is covered exactly once. Generate into a dedicated staging directory. Some compatible providers or CLI versions flatten `out` subdirectories to basenames when `--out-dir` is used; never assume `sheets/g01.png` will remain nested. Resolve staged files by verified basename, reject collisions, then copy sheets and singles into canonical project directories.
 
@@ -210,4 +246,4 @@ Regenerate identity-drifted sheets. Never conceal bad faces or sparse storyboard
 - `scripts/render_long_video.sh`: run revision-safe long-form HyperFrames rendering with chunked encoding and an extended timeout.
 - `scripts/render_streaming_ffmpeg.mjs`: low-disk fallback that renders each still to a short zoom/pan segment, concatenates, burns captions, and mixes the final audio without writing every timeline frame.
 - `scripts/verify_final_video.sh`: probe the encoded MP4, scan black/silent intervals and loudness, extract named QA frames, and build a contact sheet.
-- `scripts/setup_local_cliproxyapi.sh`: optionally install a checksum-verified CLIProxyAPI release outside projects, obtain explicit OAuth consent, bind a user-owned account to localhost, and create a protected OpenAI-compatible client environment for batch work.
+- `scripts/setup_local_cliproxyapi.sh`: check local readiness without exposing secrets, then—with explicit consent—install a checksum-verified CLIProxyAPI release outside projects, bind a user-owned account to localhost, and create a protected OpenAI-compatible client environment for batch work.

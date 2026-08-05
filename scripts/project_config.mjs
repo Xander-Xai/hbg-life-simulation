@@ -11,6 +11,26 @@ export function loadProjectSpec(root = process.cwd()) {
   if (!Array.isArray(spec.source?.chapters) || spec.source.chapters.length === 0) {
     throw new Error("PROJECT_SPEC.source.chapters must contain at least one chapter");
   }
+  const imageChannels = new Set([
+    "local-account-api",
+    "built-in-imagegen",
+    "external-compatible-api",
+  ]);
+  if (!imageChannels.has(spec.imageGeneration?.channel)) {
+    throw new Error(
+      "PROJECT_SPEC.imageGeneration.channel must be local-account-api, built-in-imagegen, or external-compatible-api",
+    );
+  }
+  if (spec.imageGeneration.channel === "local-account-api" && spec.imageGeneration.consent !== "explicit") {
+    throw new Error("local-account-api requires PROJECT_SPEC.imageGeneration.consent=explicit");
+  }
+  if (
+    !Number.isInteger(spec.imageGeneration.concurrency) ||
+    spec.imageGeneration.concurrency < 1 ||
+    spec.imageGeneration.concurrency > 10
+  ) {
+    throw new Error("PROJECT_SPEC.imageGeneration.concurrency must be an integer from 1 to 10");
+  }
   return spec;
 }
 export function toChineseNumber(value) {
