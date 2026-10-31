@@ -94,5 +94,9 @@ bash scripts/verify_final_video.sh renders/e2e-v1.mp4 qa/final 1:opening 5:title
 |---|---|---|
 | HeyGen catalog BGM / image / voice resolve | NOT_RUN | requires account sign-in; prohibited without user consent |
 | `--mode production` against a live provider | NOT_RUN | no authorized provider configured |
-| GitHub Actions run | NOT_RUN at commit time | workflow executes after the branch is pushed |
 | Full HyperFrames `check --strict` render | NOT_RUN | requires a real HyperFrames project preview; streaming FFmpeg path was verified instead |
+
+## CI
+
+`CI / validate` on `bb7f143` (GitHub Actions run 41159694590, PR #1): **PASS**. The workflow installs FFmpeg, then runs the same offline suite plus the existing shell/JS/JSON/credential/installer checks.
+
