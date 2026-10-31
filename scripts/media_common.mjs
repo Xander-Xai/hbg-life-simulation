@@ -333,8 +333,43 @@ export function copyIntoProject({ root, source, relativeTarget }) {
   return { target, sha256: sourceHash, copied: true };
 }
 
-export function normalizeAudioDuration({ source, target, seconds, fadeOut = 0.03 }) {
-  const duration = Number(seconds);
+export function normalizeLoudness({ source, target, targetLufs = -26, targetPeak = -6, lra = 6 }) {
+  const lufs = Number(targetLufs);
+  if (!Number.isFinite(lufs)) {
+    throw new MediaError(`loudness target must be a number: ${targetLufs}`, { code: "loudness_invalid", exitCode: 2 });
+  }
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  const result = spawnSync("ffmpeg", [
+    "-hide_banner", "-loglevel", "error", "-y", "-i", source,
+    "-af", `loudnorm=I=${lufs}:TP=${targetPeak}:LRA=${lra}`,
+    "-ar", "48000", "-ac", "2", "-c:a", "aac", "-b:a", "192k", target,
+  ], { encoding: "utf8" });
+  if (result.status !== 0) {
+    throw new MediaError("ffmpeg could not normalise the media loudness", {
+      code: "loudness_normalize_failed",
+      exitCode: 4,
+      details: result.stderr?.trim() ?? null,
+    });
+  }
+  return { target, sha256: sha256File(target), targetLufs: lufs, targetPeak };
+}
+
+export function measureLoudness(file) {
+  const result = spawnSync("ffmpeg", [
+    "-hide_banner", "-nostats", "-i", file, "-vn",
+    "-af", "ebur128=peak=true", "-f", "null", "-",
+  ], { encoding: "utf8" });
+  if (result.status !== 0) return null;
+  const output = `${result.stdout}\n${result.stderr}`;
+  const integrated = output.match(/Integrated loudness:[\s\S]*?I:\s*(-?\d+(?:\.\d+)?)\s*LUFS/);
+  const peak = output.match(/True peak:[\s\S]*?Peak:\s*(-?\d+(?:\.\d+)?)\s*dBFS/);
+  return {
+    integratedLufs: integrated ? Number(integrated[1]) : null,
+    truePeakDbfs: peak ? Number(peak[1]) : null,
+  };
+}
+
+export function normalizeAudioDuration({ source, target, seconds, fadeOut = 0.03 }) {  const duration = Number(seconds);
   if (!Number.isFinite(duration) || duration <= 0) {
     throw new MediaError(`normalize duration must be positive: ${seconds}`, { code: "normalize_invalid", exitCode: 2 });
   }

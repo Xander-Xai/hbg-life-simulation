@@ -58,6 +58,7 @@ test("T03/T09: enabled projects resolve BGM and a decoupled flash SFX", () => {
 
   const spec = readSpec(root);
   assert.match(spec.audio.bgmSource, /assets\/audio\/bgm\//);
+  assert.match(spec.audio.bgmSource, /master-26lufs\.m4a$/);
   assert.match(spec.opening.flashSfx, /assets\/audio\/sfx\//);
   assert.notEqual(spec.opening.flashSfx, spec.opening.flashMedia);
   assert.ok(fs.existsSync(path.join(root, spec.audio.bgmSource)));
@@ -96,7 +97,7 @@ test("a local file can be ingested as BGM without any network provider", () => {
   // Both BGM and SFX ingest from local files, so no provider is needed.
   assert.equal(result.status, 0, result.stdout);
   const payload = JSON.parse(result.stdout);
-  assert.ok(payload.results.every((item) => item.status === "resolved" || item.status === "resolved-normalized"));
+  assert.ok(payload.results.every((item) => ["resolved", "resolved-normalized", "resolved-mastered"].includes(item.status)));
   assert.match(readSpec(root).audio.bgmSource, /bgm_001/);
 });
 

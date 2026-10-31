@@ -131,6 +131,16 @@ export function probeStreams(file) {
   return JSON.parse(result.stdout).streams ?? [];
 }
 
+export function integratedLufs(file) {
+  const result = run("ffmpeg", [
+    "-hide_banner", "-nostats", "-i", file, "-vn",
+    "-af", "ebur128=peak=true", "-f", "null", "-",
+  ]);
+  const output = `${result.stdout}\n${result.stderr}`;
+  const match = output.match(/Integrated loudness:[\s\S]*?I:\s*(-?\d+(?:\.\d+)?)\s*LUFS/);
+  return match ? Number(match[1]) : null;
+}
+
 export function listFiles(root) {
   const out = [];
   const walk = (dir) => {

@@ -215,6 +215,8 @@ Animate an image child inside a full-bleed clipped wrapper. Never overlap transf
 
 Keep narration, ratchet SFX, BGM, and images on distinct tracks. Default to a constant BGM baseline with no narration-triggered ducking or repeated volume automation.
 
+BGM level is fixed by the style, not by the source file: the bed is mastered to `audio.bgmMasterLufs` (−26 LUFS by default) and mixed at `audio.bgmVolume` (0.15), which lands roughly 18 dB below narration. `prepare_media.mjs` applies that loudness normalisation on ingest, so a hot or noisy source cannot dominate the mix. Do not "fix" a loud mix by raising narration or adding ducking; re-master the bed or adjust `bgmVolume` in `HBG_STYLE.json` only.
+
 The flash segment keeps its video and audio paths separate: `opening.flashMedia` drives the visuals, `opening.flashSfx` drives the ratchet/transition sound, and `audio_meta.opening.flash.video` / `.audio` must reference those two files independently. When `opening.flashSfx` is absent, both fall back to `flashMedia` exactly as before.
 
 Create a 15–20 second opening mix preview before rendering the full video. Start with an audible bed around 8–12 dB below narration, then adjust in 3–4 dB steps by ear. Preserve at least 3 dB true-peak headroom in the encoded mix. Use [references/opening-system.md](references/opening-system.md) for the validated HBG example.

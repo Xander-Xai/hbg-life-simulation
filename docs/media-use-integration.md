@@ -94,6 +94,7 @@ A blocked BGM does not prevent SFX resolution, and vice versa; both are reported
 ## Quality gates
 
 - Every bound asset must exist, be non-empty, decode with `ffprobe`, and have a positive duration.
+- The BGM is mastered to `audio.bgmMasterLufs` in `HBG_STYLE.json` (−26 LUFS) during ingest; `audio.bgmVolume` (0.15) then lands it about 18 dB below narration. A hot source cannot dominate the mix.
 - The SFX is trimmed/looped to `narration.flashDuration` (default 1.667 s) with a 30 ms fade-out.
 - The BGM path must still survive `build_composition.mjs`, which loops it to the full video duration at the style's fixed volume.
 - `scripts/prepare_media.mjs --verify-only` is the pre-render gate.

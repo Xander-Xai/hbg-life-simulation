@@ -8,6 +8,7 @@ import {
   makeTempDir,
   makeTone,
   nodeScript,
+  integratedLufs,
   probeDuration,
   readSpec,
   listFiles,
@@ -208,6 +209,23 @@ test("T13: re-resolving the same content deduplicates instead of duplicating", (
   assert.equal(payload.sha256, JSON.parse(first.stdout).sha256);
   const bgmFiles = listFiles(root).filter((file) => file.startsWith("assets/audio/bgm/") && file.endsWith(".mp3"));
   assert.equal(bgmFiles.length, 1, `unexpected duplicate files: ${bgmFiles.join(", ")}`);
+});
+
+test("BGM loudness normalization masters the bed to the configured target", () => {
+  const { root, source } = projectWithMediaUse();
+  const result = resolve(
+    root,
+    ["--type", "bgm", "--intent", "warm piano", "--normalize-loudness", "--loudness-target", "-26"],
+    fakeEnv(source),
+  );
+  assert.equal(result.status, 0, result.stdout);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.status, "resolved-mastered");
+  assert.ok(Math.abs(payload.masterLufs - (-26)) <= 2, `mastered at ${payload.masterLufs} LUFS`);
+  assert.match(payload.path, /master-26lufs\.m4a$/);
+  const measured = integratedLufs(path.join(root, payload.path));
+  assert.ok(Math.abs(measured - (-26)) <= 3, `measured ${measured} LUFS`);
+  assert.equal(readSpec(root).audio.bgmSource, payload.path);
 });
 
 test("dry run makes no provider call and changes nothing", () => {

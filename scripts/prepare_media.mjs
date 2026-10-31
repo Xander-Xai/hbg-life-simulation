@@ -81,6 +81,13 @@ function flashDurationFor(spec) {
   return Number.isFinite(value) && value > 0 ? value : 1.667;
 }
 
+function bgmMasterTarget(root) {
+  const styleFile = path.join(root, "HBG_STYLE.json");
+  if (!fs.existsSync(styleFile)) return -26;
+  const value = Number(readJson(styleFile).audio?.bgmMasterLufs);
+  return Number.isFinite(value) ? value : -26;
+}
+
 function reportPath(root) {
   return path.join(root, "assets", "media", "prepare-report.json");
 }
@@ -165,6 +172,8 @@ export function prepareMedia({
           dryRun,
           force,
           replaceBinding: Boolean(spec.audio?.bgmSource) && !existing.valid,
+          normalizeLoudness: settings.bgm.normalizeLoudness !== false,
+          loudnessTarget: settings.bgm.masterLufs ?? bgmMasterTarget(projectDir),
           license: settings.bgm.license ?? null,
           publishAllowed: settings.bgm.publishAllowed === true,
           timeoutMs,

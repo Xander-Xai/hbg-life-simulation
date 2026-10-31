@@ -34,6 +34,7 @@ For 1920×1080:
 - semantic caption length: normally 8–18 Chinese characters; prefer a complete phrase over a shorter arbitrary cut;
 - flash motion: alternate `1.00 → 1.20` and `1.20 → 1.00` inside each short frame;
 - selected-life hold: `1.00 → 1.15` with slight drift.
+- BGM: master the bed at −26 LUFS (`audio.bgmMasterLufs`) and mix it at `audio.bgmVolume` 0.15, about 18 dB below narration; keep a constant level with no ducking;
 - opening and chapter-label widths, positions, and font sizes come from the landscape template.
 
 ## Accepted portrait baseline
@@ -49,6 +50,7 @@ For 1080×1920:
 - semantic caption length: normally 8–14 Chinese characters;
 - flash motion: alternate `1.00 → 1.20` and `1.20 → 1.00` inside each short frame;
 - selected-life hold: `1.00 → 1.15` with slight drift.
+- BGM: master the bed at −26 LUFS (`audio.bgmMasterLufs`) and mix it at `audio.bgmVolume` 0.15, about 18 dB below narration; keep a constant level with no ducking;
 - opening and chapter-label widths, positions, and font sizes come from the portrait template.
 
 When a reference video has a different aspect ratio, transfer visual appearance, not raw coordinates. Measure font size, box opacity, and padding from the reference, but derive placement and cropping from the target orientation's safe-zone ratios. Never copy `bottom`, `MarginV`, `maxWidth`, pan distance, or crop coordinates directly across orientations.

@@ -76,6 +76,8 @@ Rules:
 - `enabled`: opt-in switch for `scripts/prepare_media.mjs`.
 - `mode`: `local-only` (default; no network providers) or `production`. `production` is refused unless `allowExternalProviders` is `true`, which only the user may set.
 - `bgm.intent` / `sfx.intent`: natural-language material request. A user-provided file (`bgm.from`) or a cache SHA (`bgm.reuse`) bypasses provider search.
+- `bgm.normalizeLoudness` (default `true`) masters the bed to `bgm.masterLufs` or `HBG_STYLE.json audio.bgmMasterLufs` (−26 LUFS). Set `false` only when the file is already mastered.
+- `bgm.masterLufs`: optional per-project override of the loudness target.
 - `bgm.license` / `sfx.license` + `publishAllowed`: only an explicitly acknowledged license clears an asset for publication. Otherwise it is recorded as `LICENSE_UNVERIFIED` and is not publishable.
 - `sfx.localFallbackCues`: bundled transition cues to try when an offline intent has no match.
 - `sfx.normalizeDuration: false`: keep the raw SFX length instead of trimming/looping it to `narration.flashDuration`.

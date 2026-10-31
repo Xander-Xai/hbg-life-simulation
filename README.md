@@ -121,6 +121,7 @@ node SKILL_DIR/scripts/resolve_media.mjs --project PROJECT_DIR --type bgm --inte
 | 行为 | 说明 |
 |---|---|
 | 本地优先 | 已有且可解码的 `audio.bgmSource` 永不替换；命中索引缓存时不重复下载 |
+| BGM 电平固定 | 入库时自动归一化到 −26 LUFS（`bgmMasterLufs`），混音 `bgmVolume=0.15`，约低于旁白 18 dB；素材原始音量不影响成品 |
 | 离线可用 | `local-only` 只用内置音效库、本地文件（`bgm.from`）和缓存（`bgm.reuse`） |
 | 音画解耦 | 快闪视频 `opening.flashMedia` 与音效 `opening.flashSfx` 独立，`audio_meta` 分别记录 |
 | 可追溯 | 每个素材的 id、SHA-256、来源、时长、许可状态写入 `assets/media/hbg-media-index.json` |

@@ -14,7 +14,9 @@ import {
   fileIsNonEmpty,
   findIndexEntry,
   indexEntryIsUsable,
+  measureLoudness,
   normalizeAudioDuration,
+  normalizeLoudness,
   parseResolveOutput,
   projectMediaIndexPath,
   probeAudio,
@@ -45,6 +47,8 @@ function parseArgs(argv) {
     force: false,
     replaceBinding: false,
     normalizeDuration: null,
+    normalizeLoudness: false,
+    loudnessTarget: null,
     license: null,
     publishAllowed: false,
     timeoutMs: 180000,
@@ -53,9 +57,9 @@ function parseArgs(argv) {
   };
   const valueFlags = new Set([
     "project", "type", "intent", "mode", "from", "reuse", "normalize-duration",
-    "license", "timeout-ms", "use",
+    "loudness-target", "license", "timeout-ms", "use",
   ]);
-  const boolFlags = new Set(["dry-run", "force", "replace-binding", "publish-allowed", "json"]);
+  const boolFlags = new Set(["dry-run", "force", "replace-binding", "publish-allowed", "normalize-loudness", "json"]);
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (!token.startsWith("--")) throw new MediaError(`unexpected argument: ${token}`, { code: "usage", exitCode: 2 });
@@ -66,6 +70,7 @@ function parseArgs(argv) {
       if (rawName === "force") options.force = true;
       if (rawName === "replace-binding") options.replaceBinding = true;
       if (rawName === "publish-allowed") options.publishAllowed = true;
+      if (rawName === "normalize-loudness") options.normalizeLoudness = true;
       if (rawName === "json") options.json = true;
       continue;
     }
@@ -79,6 +84,7 @@ function parseArgs(argv) {
     if (rawName === "from") options.from = value;
     if (rawName === "reuse") options.reuse = value;
     if (rawName === "normalize-duration") options.normalizeDuration = Number(value);
+    if (rawName === "loudness-target") options.loudnessTarget = Number(value);
     if (rawName === "license") options.license = value;
     if (rawName === "timeout-ms") options.timeoutMs = Number(value);
     if (rawName === "use") options.use = value;
@@ -112,6 +118,8 @@ export function resolveProjectMedia({
   force = false,
   replaceBinding = false,
   normalizeDuration = null,
+  normalizeLoudness: applyLoudnessNormalization = false,
+  loudnessTarget = null,
   license = null,
   publishAllowed = false,
   timeoutMs = 180000,
@@ -298,6 +306,24 @@ export function resolveProjectMedia({
     boundProbe = probeAudio(normalized.target);
   }
 
+  let masterLufs = null;
+  if (applyLoudnessNormalization && type === "bgm") {
+    const targetLufs = Number(loudnessTarget ?? -26);
+    if (!Number.isFinite(targetLufs)) {
+      throw new MediaError(`--loudness-target must be a number: ${loudnessTarget}`, { code: "usage", exitCode: 2 });
+    }
+    const stem = path.basename(boundRelative, path.extname(boundRelative));
+    const masterRelative = `assets/audio/bgm/${stem}-master-${Math.abs(targetLufs)}lufs.m4a`;
+    const masterAbsolute = assertInside(projectDir, masterRelative, "mastered media");
+    const mastered = normalizeLoudness({ source: boundAbsolute, target: masterAbsolute, targetLufs });
+    preparedFrom = preparedFrom ?? boundRelative;
+    boundRelative = masterRelative;
+    boundAbsolute = mastered.target;
+    boundSha = mastered.sha256;
+    boundProbe = probeAudio(mastered.target);
+    masterLufs = measureLoudness(mastered.target)?.integratedLufs ?? targetLufs;
+  }
+
   const provenance = data.provenance ?? {};
   const licenseDefault = defaultLicenseFor(provenance);
   const finalLicense = license ?? perType.license ?? licenseDefault.license;
@@ -311,6 +337,7 @@ export function resolveProjectMedia({
     localPath: boundRelative,
     originalPath: toPosix(path.relative(projectDir, copied.target)),
     preparedFrom,
+    masterLufs,
     sha256: boundSha,
     bytes: fs.statSync(boundAbsolute).size,
     duration: boundProbe.duration,
@@ -347,7 +374,7 @@ export function resolveProjectMedia({
   writeJsonAtomic(specFile, nextSpec);
 
   return {
-    status: preparedFrom ? "resolved-normalized" : "resolved",
+    status: masterLufs !== null ? "resolved-mastered" : preparedFrom ? "resolved-normalized" : "resolved",
     type,
     id: entry.id,
     path: boundRelative,
@@ -359,6 +386,7 @@ export function resolveProjectMedia({
     license: entry.license,
     publishAllowed: entry.publishAllowed,
     preparedFrom,
+    masterLufs,
     copied: copied.copied,
     bindingUpdated: true,
   };
