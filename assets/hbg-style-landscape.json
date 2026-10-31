@@ -56,6 +56,7 @@
     "boxPadding": 8
   },
   "audio": {
-    "bgmVolume": 0.22
+    "bgmVolume": 0.15,
+    "bgmMasterLufs": -26
   }
 }

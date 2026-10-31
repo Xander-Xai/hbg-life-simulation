@@ -94,6 +94,22 @@ jobs:
           test -s "$temp_dir/landscape/HBG_STYLE.json"
           test -s "$temp_dir/portrait/HBG_STYLE.json"
 
+      - name: Install FFmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Run offline media and pipeline tests
+        run: node --test tests/*.test.mjs
+
+      - name: Smoke-test media preparation entry point
+        run: |
+          node --check scripts/prepare_media.mjs
+          node --check scripts/resolve_media.mjs
+          node --check scripts/media_common.mjs
+          node --check scripts/opening_audio.mjs
+          temp_project=$(mktemp -d)
+          printf '%s\n' '{"mediaUse":{}}' > "$temp_project/PROJECT_SPEC.json"
+          node scripts/prepare_media.mjs --project "$temp_project" --json | grep -q '"status": "skipped"'
+
       - name: Check installer help
         run: ./install.sh --help
 
