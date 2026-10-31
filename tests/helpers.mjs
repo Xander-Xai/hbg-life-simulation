@@ -25,6 +25,11 @@ export function nodeScript(script, args = [], options = {}) {
   return run(process.execPath, [path.join(scriptsDir, script), ...args], options);
 }
 
+function ffmpegFailure(label, result) {
+  const reason = result.error?.code ?? (result.signal ? `signal ${result.signal}` : `exit ${result.status}`);
+  return new Error(`${label} failed: ${reason}${result.stderr ? `: ${result.stderr.trim()}` : ""}`);
+}
+
 export function makeTone(file, { seconds = 3, frequency = 330, format = "mp3" } = {}) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const codec = format === "mp3" ? ["-c:a", "libmp3lame", "-b:a", "128k"] : ["-c:a", "aac", "-b:a", "192k"];
@@ -33,7 +38,7 @@ export function makeTone(file, { seconds = 3, frequency = 330, format = "mp3" } 
     "-f", "lavfi", "-i", `sine=frequency=${frequency}:duration=${seconds}`,
     ...codec, file,
   ]);
-  if (result.status !== 0) throw new Error(`ffmpeg tone failed: ${result.stderr}`);
+  if (result.status !== 0) throw ffmpegFailure("ffmpeg tone", result);
   return file;
 }
 
@@ -44,7 +49,7 @@ export function makeImage(file, { width = 192, height = 108, color = "0x334455" 
     "-f", "lavfi", "-i", `color=c=${color}:s=${width}x${height}:d=1`,
     "-frames:v", "1", file,
   ]);
-  if (result.status !== 0) throw new Error(`ffmpeg image failed: ${result.stderr}`);
+  if (result.status !== 0) throw ffmpegFailure("ffmpeg image", result);
   return file;
 }
 
@@ -180,7 +185,7 @@ export function makeRenderFixture(root, { separateFlashSfx = true } = {}) {
     "-vf", "zoompan=z='1+0.1*on/60':d=90:s=320x180:fps=30",
     "-c:v", "libx264", "-pix_fmt", "yuv420p", openingVideo,
   ]);
-  if (openingResult.status !== 0) throw new Error(`opening video failed: ${openingResult.stderr}`);
+  if (openingResult.status !== 0) throw ffmpegFailure("opening video", openingResult);
 
   const storyboard = [
     { id: "s001", chapter: 1, cue: "这是测试", description: "第一幕测试画面", asset: "assets/generated/scenes/s001.png", motion: "zoom-in", start: 4, duration: 1, end: 5, highRisk: false },

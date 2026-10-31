@@ -94,6 +94,9 @@ jobs:
           test -s "$temp_dir/landscape/HBG_STYLE.json"
           test -s "$temp_dir/portrait/HBG_STYLE.json"
 
+      - name: Install FFmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
       - name: Run offline media and pipeline tests
         run: node --test tests/*.test.mjs
 
