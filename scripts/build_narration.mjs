@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { loadProjectSpec, projectRelative } from "./project_config.mjs";
+import { resolveFlashTracks } from "./opening_audio.mjs";
 
 const root = process.cwd();
 const spec = loadProjectSpec(root);
@@ -17,6 +18,7 @@ fs.mkdirSync(openingAudioDir, { recursive: true });
 const narration = spec.narration ?? {};
 const VOICE = narration.voice;
 if (!VOICE) throw new Error("PROJECT_SPEC.narration.voice is required; choose the voice from the current story rather than a builder default");
+const PYTHON = process.env.HBG_PYTHON ?? (process.platform === "win32" ? "python" : "python3");
 const BODY_RATE = narration.bodyRate ?? "+0%";
 const LEAD_RATE = narration.leadRate ?? BODY_RATE;
 const REVEAL_RATE = narration.revealRate ?? BODY_RATE;
@@ -32,8 +34,13 @@ const CAPTION_MIN_DURATION = Number(narration.captionMinDuration ?? 0.55);
 const leadText = narration.leadText ?? "今天体验的人生副本是。";
 const revealText = narration.revealText ?? `${spec.title}。`;
 const narrationOutputRelative = spec.audio?.narrationOutput ?? "assets/audio/narration.m4a";
-const flashMediaRelative = spec.opening?.flashMedia;
-if (!flashMediaRelative) throw new Error("PROJECT_SPEC.opening.flashMedia is required");
+const flashTracks = resolveFlashTracks(spec);
+const flashMediaRelative = flashTracks.video;
+const flashSfxRelative = flashTracks.audio;
+if (spec.opening?.flashSfx) {
+  const flashSfxPath = path.resolve(root, spec.opening.flashSfx);
+  if (!fs.existsSync(flashSfxPath)) throw new Error(`PROJECT_SPEC.opening.flashSfx is missing: ${flashSfxPath}`);
+}
 
 const source = fs.readFileSync(scriptPath, "utf8");
 const chapterRegex = /^##\s+第[^\n｜]+章｜(.+)$/gm;
@@ -77,7 +84,7 @@ function generateEdgeTts(id, text, targetDir, rate) {
   if (!reusable) {
     fs.writeFileSync(txt, expectedText);
     fs.writeFileSync(settings, expectedSettings);
-    run("python3", ["-m", "edge_tts", "--voice", VOICE, `--rate=${rate}`, `--pitch=${PITCH}`, "--file", txt, "--write-media", mp3, "--write-subtitles", vtt]);
+    run(PYTHON, ["-m", "edge_tts", "--voice", VOICE, `--rate=${rate}`, `--pitch=${PITCH}`, "--file", txt, "--write-media", mp3, "--write-subtitles", vtt]);
     run("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", mp3, "-ar", "48000", "-ac", "1", "-c:a", "pcm_s16le", wav]);
   }
   return { txt, mp3, vtt, wav, duration: probeDuration(wav) };
@@ -354,7 +361,7 @@ const totalDuration = bodyStart + narrationDuration;
 const opening = {
   previewVideo: style.opening.approvedVideo,
   lead: { text: leadText, path: projectRelative(root, lead.mp3), rate: LEAD_RATE, start: LEAD_START, duration: lead.duration, end: LEAD_START + lead.duration },
-  flash: { video: flashMediaRelative, audio: flashMediaRelative, start: flashStart, duration: FLASH_DURATION, end: flashStart + FLASH_DURATION },
+  flash: { video: flashMediaRelative, audio: flashSfxRelative, start: flashStart, duration: FLASH_DURATION, end: flashStart + FLASH_DURATION },
   reveal: { text: revealText, path: projectRelative(root, reveal.mp3), rate: REVEAL_RATE, start: revealStart, duration: reveal.duration, end: revealStart + reveal.duration },
   bodyStart,
 };

@@ -1,6 +1,9 @@
 .DS_Store
 .env
 .env.*
+.media/
+assets/media/
+tests/.tmp/
 *.key
 *.pem
 *.p12

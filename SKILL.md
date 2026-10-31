@@ -30,6 +30,7 @@ Keep these files in every project:
 - `assets/generated/anchors/`: approved identity/style anchors.
 - `assets/generated/sheets/`: original generated sheets.
 - `assets/generated/scenes/`: split final scene images.
+- `assets/media/hbg-media-index.json` and `assets/media/prepare-report.json`: optional media-layer provenance and the last `prepare-media` result.
 - `qa/`: source snapshots, encoded frames, media probes, and mix previews.
 
 Never silently rewrite plot, viewpoint, tone, ending, or character motivation.
@@ -71,6 +72,28 @@ When the result is already `ready`, use a shorter prompt that still discloses ac
 ```
 
 Record only the selected channel, consent state, provider label, model, and concurrency in `PROJECT_SPEC.json`. Never record an endpoint, key, OAuth path, token, Cookie, or account identifier.
+
+### 0.5 Prepare BGM and opening SFX (optional media-use layer)
+
+The media layer is an enhancement, never a requirement. Skip this step for legacy projects: when `PROJECT_SPEC.mediaUse` is absent or `mediaUse.enabled` is not `true`, the original manual BGM/SFX workflow stays in force.
+
+Run it after `PROJECT_SPEC.json` exists and before narration or composition building:
+
+```bash
+node SKILL_DIR/scripts/prepare_media.mjs --project PROJECT_DIR --mode local-only --json
+```
+
+Rules:
+
+- `local-only` is the default and the only mode an agent may run unattended. It never signs in, calls a paid provider, or consumes account credits. `--mode production` requires `PROJECT_SPEC.mediaUse.allowExternalProviders=true`, which only the user may set after choosing a provider.
+- Inputs come from `PROJECT_SPEC.mediaUse`: `bgm.intent`, `sfx.intent`, and optionally `bgm.from` / `sfx.from` (a project-local audio file) or `bgm.reuse` / `sfx.reuse` (a media-use cache SHA). Never invent an intent that describes a different story mood than the one the user asked for.
+- The step resolves through `media-use`, copies the chosen asset into `assets/audio/bgm/` or `assets/audio/sfx/`, normalizes the SFX to `narration.flashDuration`, records provenance and SHA-256 in `assets/media/hbg-media-index.json`, and binds `PROJECT_SPEC.audio.bgmSource` / `opening.flashSfx`.
+- A user-supplied `bgmSource` that already exists and decodes is never replaced. Re-running the step is idempotent: valid bindings and indexed cache hits are reused without a new provider call.
+- When the requested SFX intent cannot be satisfied offline, the adapter may fall back to a bundled transition cue listed in `mediaUse.sfx.localFallbackCues` (default `whoosh-cinematic`, `riser`, `impact-bass-1`) and records `resolvedVia: local-fallback-cue` together with the original intent. Never place music, narration or video in the SFX field.
+- A blocked BGM or SFX is recorded as `blocked`/`failed` in `assets/media/prepare-report.json`; do not fabricate a path, do not silently swap in unrelated audio, and do not treat the run as successful.
+- Verify with `node SKILL_DIR/scripts/prepare_media.mjs --project PROJECT_DIR --verify-only --json` before a render. Every bound file must exist and decode.
+- Media-use never touches character anchors, 2×2 sheets, high-risk single frames, narration timing, captions, orientation, or motion. It only supplies BGM and the flash SFX.
+- Assets resolved from a provider or the bundled library are recorded as `LICENSE_UNVERIFIED` unless the user explicitly sets `mediaUse.<type>.license`; unverified assets must not be presented as commercially cleared.
 
 ### Initialize the project style
 
@@ -192,6 +215,8 @@ Animate an image child inside a full-bleed clipped wrapper. Never overlap transf
 
 Keep narration, ratchet SFX, BGM, and images on distinct tracks. Default to a constant BGM baseline with no narration-triggered ducking or repeated volume automation.
 
+The flash segment keeps its video and audio paths separate: `opening.flashMedia` drives the visuals, `opening.flashSfx` drives the ratchet/transition sound, and `audio_meta.opening.flash.video` / `.audio` must reference those two files independently. When `opening.flashSfx` is absent, both fall back to `flashMedia` exactly as before.
+
 Create a 15–20 second opening mix preview before rendering the full video. Start with an audible bed around 8–12 dB below narration, then adjust in 3–4 dB steps by ear. Preserve at least 3 dB true-peak headroom in the encoded mix. Use [references/opening-system.md](references/opening-system.md) for the validated HBG example.
 
 ### 9. Assemble in HyperFrames
@@ -239,6 +264,9 @@ Regenerate identity-drifted sheets. Never conceal bad faces or sparse storyboard
 - `scripts/build_narration.mjs`: generate config-driven continuous Edge TTS, captions, audio timing, and final storyboard timing.
 - `scripts/build_composition.mjs`: build a config-driven HyperFrames project with dynamic chapters, opening lives, titles, BGM, and orientation layout.
 - `scripts/init_project_style.mjs`: create a locked landscape `HBG_STYLE.json` by default, or a portrait one only with `--orientation portrait`, without overwriting an existing project style.
+- `scripts/prepare_media.mjs`: optional offline-first BGM/SFX preparation through `media-use`; resolves, validates, records provenance, and binds `audio.bgmSource` / `opening.flashSfx`. `--verify-only` re-checks bindings without touching the network.
+- `scripts/resolve_media.mjs`: resolve a single `bgm`/`sfx` asset for one project (`--mode local-only|production`, `--from`, `--reuse`, `--dry-run`, `--json`).
+- `scripts/opening_audio.mjs`: the single source of truth for `flashMedia` vs `flashSfx` binding.
 - `scripts/validate_style_system.mjs`: fail fast on wrong opening dimensions/duration, unsafe caption ratios, missing ASS box padding, or absent opening zoom.
 - `scripts/split_2x2.sh`: split a generated sheet into four landscape 1920×1080 PNGs by default, or portrait 1080×1920 PNGs when passed `portrait`.
 - `scripts/make_contact_sheet.sh`: create a contact sheet for review.

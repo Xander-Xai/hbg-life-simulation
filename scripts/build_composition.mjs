@@ -30,6 +30,9 @@ const bgmSource = assertProjectFile(root, bgmSourceRelative, "BGM source");
 const finalImage = assertProjectFile(root, finalImageRelative, "selected-life image");
 for (const life of flashLives) assertProjectFile(root, life.asset, `flash life ${life.label}`);
 assertProjectFile(root, narrationPathRelative, "narration audio");
+assertProjectFile(root, opening.flash.audio, "opening flash audio");
+assertProjectFile(root, opening.lead.path, "opening lead audio");
+assertProjectFile(root, opening.reveal.path, "opening reveal audio");
 
 const fullBgmVolume = style.audio.bgmVolume;
 const round3 = (value) => Number(value.toFixed(3));

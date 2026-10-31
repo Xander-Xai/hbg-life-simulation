@@ -90,6 +90,47 @@ Skill 会先做一次不读取凭据内容的本地代理就绪检查，然后�
 | 渲染 | HyperFrames 组合；长片支持低磁盘流式 FFmpeg 压制 |
 | QA | 字幕、密度、样式、黑帧、静音、响度、手部、手机与最终帧检查 |
 
+## 🎵 可选：media-use 素材接入（BGM / 快闪音效）
+
+HBG 默认仍然由你或 Agent 放置 BGM。开启可选媒体层后，BGM 与快闪音效可以由官方 [`media-use`](https://github.com/heygen-com/hyperframes/tree/main/skills/media-use) 解析、复用和登记，再自动写回 HBG 配置。
+
+```bash
+# 一次性准备本项目素材（默认离线：不登录、不调用付费提供商）
+node SKILL_DIR/scripts/prepare_media.mjs --project PROJECT_DIR --mode local-only --json
+
+# 渲染前复核绑定（不联网）
+node SKILL_DIR/scripts/prepare_media.mjs --project PROJECT_DIR --verify-only --json
+
+# 只做一次单素材解析
+node SKILL_DIR/scripts/resolve_media.mjs --project PROJECT_DIR --type bgm --intent "温暖怀旧" --json
+```
+
+在 `PROJECT_SPEC.json` 中开启：
+
+```json
+{
+  "mediaUse": {
+    "enabled": true,
+    "mode": "local-only",
+    "bgm": { "intent": "warm reflective life-story score, no vocals", "from": "assets/audio/bgm/user-pick.mp3" },
+    "sfx": { "intent": "rapid mechanical ratchet, short transition whoosh" }
+  }
+}
+```
+
+| 行为 | 说明 |
+|---|---|
+| 本地优先 | 已有且可解码的 `audio.bgmSource` 永不替换；命中索引缓存时不重复下载 |
+| 离线可用 | `local-only` 只用内置音效库、本地文件（`bgm.from`）和缓存（`bgm.reuse`） |
+| 音画解耦 | 快闪视频 `opening.flashMedia` 与音效 `opening.flashSfx` 独立，`audio_meta` 分别记录 |
+| 可追溯 | 每个素材的 id、SHA-256、来源、时长、许可状态写入 `assets/media/hbg-media-index.json` |
+| 许可提示 | 未显式声明许可的素材标记 `LICENSE_UNVERIFIED`，不会被视为已获商用授权 |
+| 失败不伪造 | 解析失败记录为 `blocked`/`failed` 并写入 `assets/media/prepare-report.json`，不会填入占位音频 |
+| 旧项目兼容 | 没有 `mediaUse` 字段时行为与之前完全一致，未安装 media-use 也不影响原有流程 |
+| 外部提供商 | `production` 模式必须由用户显式设置 `allowExternalProviders=true`；Agent 不会自动登录或消耗额度 |
+
+完整设计、配置 Schema、provenance 与失败策略见 [docs/media-use-integration.md](docs/media-use-integration.md)。
+
 ## 🚀 快速开始
 
 ### 方法一：让 Agent 自动安装（推荐）
@@ -258,6 +299,10 @@ project/
 ## 🧰 常用命令
 
 ```bash
+# 可选媒体层：BGM 与快闪音效
+node /path/to/hbg-life-simulation/scripts/prepare_media.mjs PROJECT_DIR --mode local-only --json
+node /path/to/hbg-life-simulation/scripts/prepare_media.mjs PROJECT_DIR --verify-only --json
+
 # 初始化默认横屏样式
 node /path/to/hbg-life-simulation/scripts/init_project_style.mjs PROJECT_DIR
 
@@ -316,7 +361,7 @@ node /path/to/hbg-life-simulation/scripts/render_streaming_ffmpeg.mjs PROJECT_DI
 | HyperFrames | HTML 时间线、检查、开头预览与渲染 |
 | ImageGen 能力 | 漫画锚点、宫格和单图素材 |
 | CLIProxyAPI（首选，需同意） | 把用户自己的 Codex 等账户暴露为仅本机可访问的兼容 Images API；失败时回退内置 ImageGen |
-| `media-use` / visual QA skills | 音频与最终视觉检查，推荐安装 |
+| `media-use`（可选） | 通过 `npx hyperframes media-use` 解析/复用 BGM 与快闪音效；离线模式无需账户。同时用于音频与最终视觉检查，推荐安装 |
 
 仓库不包含模型权重、API Key、生成图片、故事文案、声音、BGM 或成片。
 
