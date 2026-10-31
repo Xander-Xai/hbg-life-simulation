@@ -209,7 +209,7 @@ export function resolveProjectMedia({
     type,
     intent: resolvedIntent,
     project: projectDir,
-    to: from ? path.resolve(from) : null,
+    to: from ? path.resolve(projectDir, from) : null,
     reuse,
     localOnly: mode === LOCAL_ONLY,
     json: true,
